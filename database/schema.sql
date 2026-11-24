@@ -16,7 +16,7 @@ create table composicoes (
 );
 
 -- Série histórica mensal de preços
-create table composições_precos (
+create table composicoes_precos (
     id int auto_increment primary key,
     codigo_sinapi varchar(20) not null,
     uf char(2) not null default 'RS',
