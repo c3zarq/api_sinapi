@@ -11,7 +11,7 @@ with open(ARQUIVO_PINTURA, "r", encoding="utf-8") as f:
         linha = linha.strip()
         if not linha:
             continue
-        partes = linha.split("\t") if "\t" in linha else re.split(r"\s{2,}, linha")
+        partes = linha.split("\t") if "\t" in linha else re.split(r"\s{2,}", linha)
         if len(partes) >= 2:
             selecionados[partes[1].strip()] = partes[0].strip()
 

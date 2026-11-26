@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Auditor de Orçamentos de Pintura — SINAPI</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Auditor de Orçamentos de Pintura • API RESTful</h1>
+      <small>Referência Oficial SINAPI / CAIXA</small>
+    </div>
+    <div>JSON + Exportação XML</div>
+  </header>
+
+  <div class="banner-escopo" id="banner-escopo">
+    <strong>Aviso de Escopo (MVP):</strong> Esta versão avalia exclusivamente <strong>serviços de Pintura (material + mão de obra)</strong> utilizando índices coletados no <strong>mês de outubro de 2026 (2026-10)</strong> para o estado do <strong>RS</strong> (Sem Desoneração).
+  </div>
+
+  <main>
+    <!-- 1. Seleção Guiada de Serviços de Pintura -->
+    <section class="card">
+      <div class="cabecalho-secao">
+        <h2>1. Selecione os Serviços do Orçamento Recebido (Filtro Guiado SINAPI)</h2>
+        <div style="min-width: 240px;">
+          <select id="filtro-referencia" onchange="aoMudarReferencia()"></select>
+        </div>
+      </div>
+
+      <div class="grid-cascata">
+        <div>
+          <label>Passo 1 • Ambiente / Superfície</label>
+          <select id="filtro-grupo" onchange="aoMudarGrupo()">
+            <option value="">Todos os ambientes...</option>
+          </select>
+        </div>
+        <div>
+          <label>Passo 2 • Etapa do Serviço</label>
+          <select id="filtro-etapa" onchange="aoMudarEtapa()">
+            <option value="">Todas as etapas...</option>
+          </select>
+        </div>
+        <div>
+          <label>Passo 3 • Número de Demãos</label>
+          <select id="filtro-demaos" onchange="consultarSinapi()">
+            <option value="">Todas...</option>
+          </select>
+        </div>
+        <div>
+          <label>Refinar por palavra-chave ou código</label>
+          <input type="text" id="filtro-descricao" placeholder="Ex: parede, teto, esmalte, 88489..." oninput="consultarSinapi()" />
+        </div>
+      </div>
+
+      <div class="tabela-scroll">
+        <table id="tabela-sinapi">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Ambiente</th>
+              <th>Etapa</th>
+              <th>Descrição Técnica SINAPI (Material + Mão de Obra)</th>
+              <th>Unid.</th>
+              <th>Ref. SINAPI (R$)</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="box-item-selecionado" class="box-selecao hidden">
+        <h3>Passo 4 • Informe a Quantidade e o Valor Cobrado pelo Pintor/Empresa</h3>
+        <p id="sel-descricao" class="destaque-servico"></p>
+        <div class="grid-valores">
+          <div>
+            <label>Quantidade (<span id="sel-unidade">M2</span>)</label>
+            <input type="number" id="sel-qtd" step="0.01" value="50" oninput="sincronizarPorUnitario()" />
+          </div>
+          <div>
+            <label>Preço Unitário Cobrado (R$)</label>
+            <input type="number" id="sel-unitario" step="0.01" oninput="sincronizarPorUnitario()" />
+          </div>
+          <div>
+            <label>OU Valor Total Cobrado no Item (R$)</label>
+            <input type="number" id="sel-total" step="0.01" oninput="sincronizarPorTotal()" />
+          </div>
+          <div class="alinhar-base">
+            <button class="btn-primary" onclick="confirmarInclusaoItem()">+ Incluir na Planilha</button>
+            <button onclick="cancelarSelecao()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Planilha do Orçamento para Auditoria -->
+    <section class="card">
+      <div class="cabecalho-secao">
+        <h2>2. Orçamento Montado para Análise (POST)</h2>
+        <button onclick="carregarExemploPratico()">Preencher Exemplo Prático (3 itens)</button>
+      </div>
+      <div class="grid-form">
+        <div style="flex: 2;">
+          <label>Identificação da Obra / Proposta</label>
+          <input type="text" id="obra-titulo" value="Pintura Interna Apartamento - Proposta Empresa A" />
+        </div>
+        <div>
+          <label>BDI / Margem Comercial (%)</label>
+          <input type="number" id="obra-bdi" step="0.5" value="15" />
+        </div>
+        <div>
+          <label>Tolerância de Variação (%)</label>
+          <input type="number" id="obra-tolerancia" step="0.5" value="5" />
+        </div>
+        <div class="alinhar-base">
+          <button class="btn-primary" onclick="enviarAuditoria()">Avaliar Orçamento</button>
+        </div>
+      </div>
+
+      <table id="tabela-orcamento">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Serviço de Pintura</th>
+            <th>Ref. Base (R$)</th>
+            <th>Quantidade</th>
+            <th>Unit. Cobrado (R$)</th>
+            <th>Total Cobrado (R$)</th>
+            <th>Remover</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <!-- 3. Resultado, Histórico e Exportação XML -->
+    <section class="card">
+      <h2>3. Avaliações Salvas &amp; Exportação XML (GET / PUT / DELETE)</h2>
+      <button onclick="carregarAuditorias()">Atualizar Histórico</button>
+      <table id="tabela-historico">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Proposta / Obra</th>
+            <th>Data-Base</th>
+            <th>BDI (%)</th>
+            <th>Total Orçado (R$)</th>
+            <th>Referência SINAPI+BDI (R$)</th>
+            <th>Diferença (R$)</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div id="painel-detalhe" class="hidden">
+        <h3>Parecer Técnico da Avaliação #<span id="detalhe-id"></span></h3>
+        <div id="cards-resumo" class="grid-resumo"></div>
+
+        <div class="grid-form">
+          <div>
+            <label>Simular Novo BDI (%)</label>
+            <input type="number" id="put-bdi" step="0.5" />
+          </div>
+          <div>
+            <label>Nova Tolerância (%)</label>
+            <input type="number" id="put-tolerancia" step="0.5" />
+          </div>
+          <div class="alinhar-base">
+            <button class="btn-primary" onclick="recalcularAuditoria()">Recalcular (PUT)</button>
+            <button onclick="exportarXml()">Exportar Relatório XML (?formato=xml)</button>
+          </div>
+        </div>
+
+        <table id="tabela-resultado-itens">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Serviço</th>
+              <th>Qtd</th>
+              <th>Cobrado (R$)</th>
+              <th>Teto SINAPI+BDI (R$)</th>
+              <th>Diferença (%)</th>
+              <th>Diagnóstico</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div id="box-xml" class="hidden">
+          <h4>Arquivo XML Exportado (Integração ERP / Perícia):</h4>
+          <pre id="xml-viewer"></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Atualização Mensal via Planilha Oficial Caixa (.xlsx) -->
+    <section class="card">
+      <h2>4. Atualização Mensal da Base SINAPI (Importação .xlsx CAIXA)</h2>
+      <div class="grid-valores">
+        <div>
+          <label>Planilha Oficial SINAPI (.xlsx)</label>
+          <input type="file" id="import-arquivo" accept=".xlsx" />
+        </div>
+        <div>
+          <label>Estado (UF)</label>
+          <select id="import-uf">
+            <option value="RS" selected>RS - Rio Grande do Sul</option>
+            <option value="SC">SC - Santa Catarina</option>
+            <option value="PR">PR - Paraná</option>
+            <option value="SP">SP - São Paulo</option>
+            <option value="RJ">RJ - Rio de Janeiro</option>
+            <option value="MG">MG - Minas Gerais</option>
+          </select>
+        </div>
+        <div>
+          <label>Mês de Referência</label>
+          <input type="month" id="import-mes" value="2026-11" />
+        </div>
+        <div>
+          <label>Regime de Encargos</label>
+          <select id="import-regime">
+            <option value="CSD" selected>CSD - Sem Desoneração</option>
+            <option value="CCD">CCD - Com Desoneração</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top: 10px;">
+        <button class="btn-primary" onclick="importarPlanilhaSinapi()">Importar / Atualizar Preços de Pintura</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
